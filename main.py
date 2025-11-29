@@ -103,7 +103,7 @@ def show_popup(root):
             pygame.mixer.Sound("Resources/blip.mp3").play()
             popup.destroy()
 
-    countdown(3)
+    countdown(20)
 
 def eye_care_loop(root, interval=10):
     stop_event.clear()
@@ -165,7 +165,7 @@ def create_app():
             
             stop_event.clear()
             threading.Thread(
-                target=lambda: eye_care_loop(root, interval=10), 
+                target=lambda: eye_care_loop(root, interval= 20 * 60), 
                 daemon=True
             ).start()
             root.iconify()
