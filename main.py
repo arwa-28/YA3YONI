@@ -29,17 +29,25 @@ CONFIG_FILE = "config.json"
 
 stop_event = threading.Event()
 
+def scale_factor(x):
+    return int(x * 1)
+
 
 def load_config():
-    if os.path.exists(CONFIG_FILE):
-        with open(CONFIG_FILE, "r") as f:
-            return json.load(f)
-    else:
-        return {"eye_color": "blue"}
+    if not os.path.exists("config.json"):
+        return {"eye_color": "", "username": ""}
+    with open("config.json", "r") as f:
+        data = json.load(f)
+
+    if "username" not in data:
+        data["username"] = "stranger"
+        save_config(data)
+
+    return data
 
 def save_config(config):
-    with open(CONFIG_FILE, "w") as f:
-        json.dump(config, f)
+    with open("config.json", "w") as f:
+        json.dump(config, f, indent=4)
 
 config = load_config()
 
@@ -67,10 +75,21 @@ def show_popup(root):
     eye_label.image = closed_photo
     eye_label.pack(pady=10)
 
-    tk.Label(popup, text="🔔 Close your eyes!", font=(FONT_NAME, 10),
-            bg=PRIMARY_COLOR, fg="white").pack(pady=10)
+    tk.Label(
+        popup, 
+        text="🔔 Close your eyes!", 
+        font=(FONT_NAME, 10),
+        bg=PRIMARY_COLOR,
+        fg="white"
+    ).pack(pady=10)
 
-    countdown_label = tk.Label(popup, text="20", font=(FONT_NAME, 14), bg=PRIMARY_COLOR, fg="white")
+    countdown_label = tk.Label(
+        popup, 
+        text="20", 
+        font=(FONT_NAME, 14), 
+        bg=PRIMARY_COLOR, 
+        fg="white"
+    )
     countdown_label.pack(pady=10)
 
     def countdown(seconds):
@@ -103,7 +122,7 @@ def create_app():
     root = tk.Tk()
     root.title("Ya3yoni")
     root.configure(bg=PRIMARY_COLOR)
-    root.geometry("400x300")
+    root.geometry("450x350")
     
     app_running = False
     current_eye_color = tk.StringVar(value=config.get("eye_color", "blue"))
@@ -111,6 +130,15 @@ def create_app():
     # ===== MAIN FRAME =====
     main_frame = tk.Frame(root, bg=PRIMARY_COLOR)
     main_frame.pack(fill="both", expand=True)
+
+    user_name = tk.Label(
+        main_frame, 
+        text=f"- {config['username']} -", 
+        font=(FONT_NAME, scale_factor(6)), 
+        bg=PRIMARY_COLOR, 
+        fg=TEXT_COLOR
+    )
+    user_name.pack(pady=10)
 
     eye_img = Image.open(f"images/{current_eye_color.get()}.png").resize((100,100))
     eye_photo = ImageTk.PhotoImage(eye_img)
@@ -156,7 +184,7 @@ def create_app():
     start_button = tk.Button(
         main_frame, 
         text="START", 
-        font=(FONT_NAME, 6),
+        font=(FONT_NAME, scale_factor(6)),
         bg=BUTTON_COLOR, 
         fg=TEXT_COLOR, 
         activebackground=BUTTON_HOVER,
@@ -167,7 +195,12 @@ def create_app():
     )
     start_button.pack(pady=10)
 
-    status_label = tk.Label(main_frame, text="", fg="white", bg=PRIMARY_COLOR, font=(FONT_NAME, 6))
+    status_label = tk.Label(
+        main_frame, text="", 
+        fg="black", 
+        bg=PRIMARY_COLOR, 
+        font=(FONT_NAME, scale_factor(6))
+    )
     status_label.pack(pady=5)
     status_label.fixed = None  
 
@@ -195,13 +228,43 @@ def create_app():
         settings_frame.pack_forget()
         main_frame.pack(fill="both", expand=True)
 
-    back_button_settings = tk.Button(settings_frame, text="← Back", font=(FONT_NAME, 6),
-                            bg=PRIMARY_COLOR, fg=TEXT_COLOR, bd=0,
-                            activebackground=PRIMARY_COLOR, command=back_to_main_from_settings)
+    back_button_settings = tk.Button(
+        settings_frame, 
+        text="← Back", 
+        font=(FONT_NAME, scale_factor(6)),
+        bg=PRIMARY_COLOR, 
+        fg=TEXT_COLOR, 
+        bd=0,
+        activebackground=PRIMARY_COLOR, 
+        command=back_to_main_from_settings
+    )
     back_button_settings.pack(anchor="nw", padx=5, pady=5)
 
-    tk.Label(settings_frame, text="Select your eye color:", font=(FONT_NAME,7),
-            bg=PRIMARY_COLOR, fg=TEXT_COLOR).pack(pady=10)
+    tk.Label(
+        settings_frame,
+        text="So, what should I call you?",
+        bg=PRIMARY_COLOR,
+        fg=TEXT_COLOR,
+        font=(FONT_NAME, scale_factor(6)),
+    ).pack(pady=(10, 2))
+
+    username_entry = tk.Entry(
+        settings_frame,
+        font=(FONT_NAME, scale_factor(6)),
+        bg="white",
+        fg="black",
+    )
+    username_entry.pack(pady=10)
+
+    username_entry.insert(0, config["username"])
+
+    tk.Label(
+        settings_frame, 
+        text="Choose your eye color:", 
+        font=(FONT_NAME, scale_factor(6)),
+        bg=PRIMARY_COLOR, 
+        fg=TEXT_COLOR
+    ).pack(pady=10)
 
     index = EYE_COLORS.index(current_eye_color.get())
     eye_img_settings = Image.open(f"images/{EYE_COLORS[index]}.png").resize((100,100))
@@ -211,8 +274,13 @@ def create_app():
     eye_label_settings.pack(pady=5)
 
     eye_color_text = tk.StringVar(value=EYE_QUOTES[index])
-    tk.Label(settings_frame, textvariable=eye_color_text, font=(FONT_NAME,6),
-            bg=PRIMARY_COLOR, fg=TEXT_COLOR).pack(pady=10)
+    tk.Label(
+        settings_frame, 
+        textvariable=eye_color_text, 
+        font=(FONT_NAME, scale_factor(6)),
+        bg=PRIMARY_COLOR, 
+        fg=TEXT_COLOR
+    ).pack(pady=10)
 
     def update_eye_image(i):
         nonlocal index, eye_photo_settings
@@ -233,21 +301,55 @@ def create_app():
 
     nav_frame = tk.Frame(settings_frame, bg=PRIMARY_COLOR)
     nav_frame.pack(pady=5)
-    tk.Button(nav_frame, text="⬅ Prev", font=(FONT_NAME,6),
-            bg=BUTTON_COLOR, fg=TEXT_COLOR, command=prev_pic).pack(side="left", padx=10)
-    tk.Button(nav_frame, text="Next ➡", font=(FONT_NAME,6),
-            bg=BUTTON_COLOR, fg=TEXT_COLOR, command=next_pic).pack(side="right", padx=10)
 
-    # ===== Back & Save buttons (Settings) =====
+    tk.Button(
+        nav_frame, 
+        text="⬅ Prev", 
+        font=(FONT_NAME, scale_factor(6)),
+        bg=BUTTON_COLOR, 
+        fg=TEXT_COLOR, 
+        command=prev_pic
+    ).pack(side="left", padx=10)
+
+    tk.Button(
+        nav_frame, 
+        text="Next ➡", 
+        font=(FONT_NAME, scale_factor(6)),
+        bg=BUTTON_COLOR, 
+        fg=TEXT_COLOR, 
+        command=next_pic
+    ).pack(side="right", padx=10)
+
+    # ===== Save button (Settings) =====
     def save_settings():
         pygame.mixer.Sound("Resources/save.mp3").play()
         update_main_eye_image()
+        user_name.config(text=f"- {username_entry.get().strip()} -")
         config["eye_color"] = current_eye_color.get()
+        config["username"] = username_entry.get().strip()
         save_config(config)
+        saved_label.config(text="Saved ✓")
+        saved_label.after(1000, lambda: saved_label.config(text=""))
 
-    save_button_settings = tk.Button(settings_frame, text="💾 Save", font=(FONT_NAME,6),
-                            bg="#364B73", fg="white", command=save_settings)
+
+    save_button_settings = tk.Button(
+        settings_frame,
+        text="💾 Save", 
+        font=(FONT_NAME, scale_factor(6)),
+        bg="#364B73", 
+        fg="white", 
+        command=save_settings
+    )
     save_button_settings.pack(pady=5)
+
+    saved_label = tk.Label(
+        settings_frame,
+        text="", 
+        bg=PRIMARY_COLOR,
+        fg= "black",
+        font=(FONT_NAME, scale_factor(6))
+    )
+    saved_label.pack(pady=(0, 10))
 
     # ===== INFO FRAME =====
     info_frame = tk.Frame(root, bg=PRIMARY_COLOR)
@@ -260,22 +362,40 @@ def create_app():
         main_frame.pack(fill="both", expand=True)
 
 
-    back_button_info = tk.Button(info_frame, text="← Back", font=(FONT_NAME,6),
-                            bg=PRIMARY_COLOR, fg=TEXT_COLOR, bd=0,
-                            activebackground=PRIMARY_COLOR, command=back_to_main_from_info)
+    back_button_info = tk.Button(
+        info_frame,
+        text="← Back", 
+        font=(FONT_NAME, scale_factor(6)),
+        bg=PRIMARY_COLOR,
+        fg=TEXT_COLOR, 
+        bd=0,
+        activebackground=PRIMARY_COLOR, 
+        command=back_to_main_from_info
+    )
     back_button_info.pack(anchor="nw", padx=5, pady=5)
 
-    tk.Label(info_frame, text="Ya3yoni", font=(FONT_NAME,12),
-            bg=PRIMARY_COLOR, fg=TEXT_COLOR).pack(pady=10)
-    tk.Label(info_frame, text="Version 1.0", font=(FONT_NAME,8),
-            bg=PRIMARY_COLOR, fg=TEXT_COLOR).pack(pady=5)
+    tk.Label(
+        info_frame, 
+        text="Ya3yoni", 
+        font=(FONT_NAME, scale_factor(10)),
+        bg=PRIMARY_COLOR, 
+        fg=TEXT_COLOR
+    ).pack(pady=10)
+
+    tk.Label(
+        info_frame, 
+        text="Version 1.0", 
+        font=(FONT_NAME, scale_factor(6)),
+        bg=PRIMARY_COLOR,
+        fg=TEXT_COLOR
+    ).pack(pady=5)
 
     tk.Label(
         info_frame,
         text="- this app was made for your deadly brain that forgets to blink, playing staring contests with your computer.\n\nAnd no, those 20 seconds of closing your eyes still won’t finish the task you’ve been avoiding until the deadline… but at least your eyes won’t suffer for it.\n\nSo here I am solving a problem you didn’t even know you had.\n\nyou’re welcome\n\nCredits: Arwa Mohamed", 
         justify="left",
-        wraplength=250, 
-        font=(FONT_NAME, 8),
+        wraplength=400, 
+        font=(FONT_NAME, scale_factor(6)),
         bg=PRIMARY_COLOR, 
         fg=TEXT_COLOR
     ).pack(pady=(10, 5))
@@ -297,13 +417,27 @@ def create_app():
         main_frame.pack_forget()
         settings_frame.pack(fill="both", expand=True)
 
-    tk.Button(main_frame, text="⚙️ Settings", font=(FONT_NAME,6),
-            bg=PRIMARY_COLOR, fg=TEXT_COLOR, bd=0,
-            activebackground=PRIMARY_COLOR, command=open_settings).pack()
+    tk.Button(
+        main_frame, 
+        text="⚙️ Settings", 
+        font=(FONT_NAME, scale_factor(6)),
+        bg=PRIMARY_COLOR, 
+        fg=TEXT_COLOR, 
+        bd=0,
+        activebackground=PRIMARY_COLOR, 
+        command=open_settings
+    ).pack()
 
-    tk.Button(main_frame, text="? Info", font=(FONT_NAME,6),
-            bg=PRIMARY_COLOR, fg=TEXT_COLOR, bd=0,
-            activebackground=PRIMARY_COLOR, command=open_info).pack()
+    tk.Button(
+        main_frame, 
+        text="? Info", 
+        font=(FONT_NAME, scale_factor(6)),
+        bg=PRIMARY_COLOR, 
+        fg=TEXT_COLOR, 
+        bd=0,
+        activebackground=PRIMARY_COLOR, 
+        command=open_info
+    ).pack()
 
     return root
 
