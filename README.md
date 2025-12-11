@@ -25,24 +25,13 @@ A fun and practical desktop application designed to remind users to take eye bre
 
 ## Installation
 
-1- Clone the repository:
-    ```bash
-    git clone https://github.com/arwa-28/YA3YONI.git
-
-2-Navigate to the project folder:
-    cd ya3yoni
-
-3- Install dependencies:
-    pip install -r requirements.txt
-
-4- Run the app:
-    python main.py
+The latest version is available now — click [here](https://github.com/arwa-28/YA3YONI/releases) to download.
 
 ---
 
 ## Usage
 
-1- Open the app by running main.py.
+1- Open the app.
 
 2- Click START to begin eye care reminders.
 
