@@ -1,2 +1,6 @@
 Pillow
 pygame
+requests
+django
+djangorestframework
+django-cors-headers

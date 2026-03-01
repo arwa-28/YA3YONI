@@ -5,6 +5,7 @@ import time
 import pygame
 import json
 import os
+import requests
 
 # ===== Initialize pygame mixer =====
 pygame.mixer.init()
@@ -26,8 +27,10 @@ EYE_QUOTES = [
 ]
 
 CONFIG_FILE = "config.json"
+API_URL = "http://localhost:8000/api/sync/"
 
 stop_event = threading.Event()
+
 
 def scale_factor(x):
     return int(x * 1)
@@ -45,11 +48,34 @@ def load_config():
 
     return data
 
+
 def save_config(config):
     with open("config.json", "w") as f:
         json.dump(config, f, indent=4)
+    # Sync with backend
+    try:
+        requests.post(API_URL, json={
+            "username": config["username"],
+            "eye_color": config["eye_color"],
+            "device_type": "desktop"
+        }, timeout=2)
+    except:
+        pass
+
+
+def sync_with_backend():
+    global config
+    try:
+        response = requests.get(f"http://localhost:8000/api/user/{config['username']}/", timeout=2)
+        if response.status_code == 200:
+            data = response.json()
+            config["eye_color"] = data["eye_color"]
+            save_config(config)
+    except:
+        pass
 
 config = load_config()
+sync_with_backend()
 
 
 def show_popup(root):
@@ -66,7 +92,6 @@ def show_popup(root):
     y = (popup.winfo_screenheight() // 2) - (h // 2)
     popup.geometry(f"{w}x{h}+{x}+{y}")
 
-
     closed_eye = Image.open(f"images/closed.png")
     closed_eye = closed_eye.resize((100, 100))
     closed_photo = ImageTk.PhotoImage(closed_eye)
@@ -76,19 +101,15 @@ def show_popup(root):
     eye_label.pack(pady=10)
 
     tk.Label(
-        popup, 
-        text="🔔 Close your eyes!", 
+        popup,
+        text="🔔 Close your eyes!",
         font=(FONT_NAME, 10),
         bg=PRIMARY_COLOR,
-        fg="white"
+        fg="white",
     ).pack(pady=10)
 
     countdown_label = tk.Label(
-        popup, 
-        text="20", 
-        font=(FONT_NAME, 14), 
-        bg=PRIMARY_COLOR, 
-        fg="white"
+        popup, text="20", font=(FONT_NAME, 14), bg=PRIMARY_COLOR, fg="white"
     )
     countdown_label.pack(pady=10)
 
@@ -105,12 +126,28 @@ def show_popup(root):
 
     countdown(20)
 
+
 def eye_care_loop(root, interval=10):
     stop_event.clear()
     elapsed = 0
+    sync_counter = 0
     while not stop_event.is_set():
         time.sleep(0.1)
         elapsed += 0.1
+        sync_counter += 0.1
+
+        # Sync screen time every 10 seconds
+        if sync_counter >= 10:
+            sync_counter = 0
+            try:
+                requests.post(API_URL, json={
+                    "username": config["username"],
+                    "device_type": "desktop",
+                    "increment_seconds": 10
+                }, timeout=1)
+            except:
+                pass
+
         if elapsed >= interval:
             elapsed = 0
             if stop_event.is_set():
@@ -123,31 +160,31 @@ def create_app():
     root.title("Ya3yoni")
     root.configure(bg=PRIMARY_COLOR)
     root.geometry("450x350")
-    
+
     app_running = False
     current_eye_color = tk.StringVar(value=config.get("eye_color", "blue"))
-    
+
     # ===== MAIN FRAME =====
     main_frame = tk.Frame(root, bg=PRIMARY_COLOR)
     main_frame.pack(fill="both", expand=True)
 
     user_name = tk.Label(
-        main_frame, 
-        text=f"- {config['username']} -", 
-        font=(FONT_NAME, scale_factor(6)), 
-        bg=PRIMARY_COLOR, 
-        fg=TEXT_COLOR
+        main_frame,
+        text=f"- {config['username']} -",
+        font=(FONT_NAME, scale_factor(6)),
+        bg=PRIMARY_COLOR,
+        fg=TEXT_COLOR,
     )
     user_name.pack(pady=10)
 
-    eye_img = Image.open(f"images/{current_eye_color.get()}.png").resize((100,100))
+    eye_img = Image.open(f"images/{current_eye_color.get()}.png").resize((100, 100))
     eye_photo = ImageTk.PhotoImage(eye_img)
     eye_label = tk.Label(main_frame, image=eye_photo, bg=PRIMARY_COLOR)
     eye_label.image = eye_photo
     eye_label.pack(pady=10)
 
     def update_main_eye_image():
-        img = Image.open(f"images/{current_eye_color.get()}.png").resize((100,100))
+        img = Image.open(f"images/{current_eye_color.get()}.png").resize((100, 100))
         photo = ImageTk.PhotoImage(img)
         eye_label.config(image=photo)
         eye_label.image = photo
@@ -159,14 +196,13 @@ def create_app():
             pygame.mixer.Sound("Resources/computer-mouse-click.mp3").play()
             app_running = True
             start_button.config(text="STOP")
-            
-            status_label.config(text="")   
-            status_label.fixed = None        
-            
+
+            status_label.config(text="")
+            status_label.fixed = None
+
             stop_event.clear()
             threading.Thread(
-                target=lambda: eye_care_loop(root, interval= 20 * 60), 
-                daemon=True
+                target=lambda: eye_care_loop(root, interval=20 * 60), daemon=True
             ).start()
             root.iconify()
 
@@ -180,34 +216,34 @@ def create_app():
 
             stop_click_message()
 
-
     start_button = tk.Button(
-        main_frame, 
-        text="START", 
+        main_frame,
+        text="START",
         font=(FONT_NAME, scale_factor(6)),
-        bg=BUTTON_COLOR, 
-        fg=TEXT_COLOR, 
+        bg=BUTTON_COLOR,
+        fg=TEXT_COLOR,
         activebackground=BUTTON_HOVER,
-        activeforeground=TEXT_COLOR, 
-        bd=3,               
-        relief="raised",    
-        command=start_app
+        activeforeground=TEXT_COLOR,
+        bd=3,
+        relief="raised",
+        command=start_app,
     )
     start_button.pack(pady=10)
 
     status_label = tk.Label(
-        main_frame, text="", 
-        fg="black", 
-        bg=PRIMARY_COLOR, 
-        font=(FONT_NAME, scale_factor(6))
+        main_frame,
+        text="",
+        fg="black",
+        bg=PRIMARY_COLOR,
+        font=(FONT_NAME, scale_factor(6)),
     )
     status_label.pack(pady=5)
-    status_label.fixed = None  
+    status_label.fixed = None
 
     def stop_hover_enter(event):
-        if app_running: 
+        if app_running:
             status_label.config(text="Don't you dare click it!")
-            
+
     def stop_hover_leave(event):
         if status_label.fixed is None:
             status_label.config(text="")
@@ -219,24 +255,23 @@ def create_app():
     start_button.bind("<Enter>", stop_hover_enter)
     start_button.bind("<Leave>", stop_hover_leave)
 
-
     # ===== SETTINGS FRAME =====
     settings_frame = tk.Frame(root, bg=PRIMARY_COLOR)
-    
+
     def back_to_main_from_settings():
         pygame.mixer.Sound("Resources/computer-mouse-click.mp3").play()
         settings_frame.pack_forget()
         main_frame.pack(fill="both", expand=True)
 
     back_button_settings = tk.Button(
-        settings_frame, 
-        text="← Back", 
+        settings_frame,
+        text="← Back",
         font=(FONT_NAME, scale_factor(6)),
-        bg=PRIMARY_COLOR, 
-        fg=TEXT_COLOR, 
+        bg=PRIMARY_COLOR,
+        fg=TEXT_COLOR,
         bd=0,
-        activebackground=PRIMARY_COLOR, 
-        command=back_to_main_from_settings
+        activebackground=PRIMARY_COLOR,
+        command=back_to_main_from_settings,
     )
     back_button_settings.pack(anchor="nw", padx=5, pady=5)
 
@@ -259,33 +294,35 @@ def create_app():
     username_entry.insert(0, config["username"])
 
     tk.Label(
-        settings_frame, 
-        text="Choose your eye color:", 
+        settings_frame,
+        text="Choose your eye color:",
         font=(FONT_NAME, scale_factor(6)),
-        bg=PRIMARY_COLOR, 
-        fg=TEXT_COLOR
+        bg=PRIMARY_COLOR,
+        fg=TEXT_COLOR,
     ).pack(pady=10)
 
     index = EYE_COLORS.index(current_eye_color.get())
-    eye_img_settings = Image.open(f"images/{EYE_COLORS[index]}.png").resize((100,100))
+    eye_img_settings = Image.open(f"images/{EYE_COLORS[index]}.png").resize((100, 100))
     eye_photo_settings = ImageTk.PhotoImage(eye_img_settings)
-    eye_label_settings = tk.Label(settings_frame, image=eye_photo_settings, bg=PRIMARY_COLOR)
+    eye_label_settings = tk.Label(
+        settings_frame, image=eye_photo_settings, bg=PRIMARY_COLOR
+    )
     eye_label_settings.image = eye_photo_settings
     eye_label_settings.pack(pady=5)
 
     eye_color_text = tk.StringVar(value=EYE_QUOTES[index])
     tk.Label(
-        settings_frame, 
-        textvariable=eye_color_text, 
+        settings_frame,
+        textvariable=eye_color_text,
         font=(FONT_NAME, scale_factor(6)),
-        bg=PRIMARY_COLOR, 
-        fg=TEXT_COLOR
+        bg=PRIMARY_COLOR,
+        fg=TEXT_COLOR,
     ).pack(pady=10)
 
     def update_eye_image(i):
         nonlocal index, eye_photo_settings
         index = i % len(EYE_COLORS)
-        img = Image.open(f"images/{EYE_COLORS[index]}.png").resize((100,100))
+        img = Image.open(f"images/{EYE_COLORS[index]}.png").resize((100, 100))
         photo = ImageTk.PhotoImage(img)
         eye_label_settings.config(image=photo)
         eye_label_settings.image = photo
@@ -294,30 +331,31 @@ def create_app():
 
     def next_pic():
         pygame.mixer.Sound("Resources/select-sound.mp3").play()
-        update_eye_image(index+1)
+        update_eye_image(index + 1)
+
     def prev_pic():
         pygame.mixer.Sound("Resources/select-sound.mp3").play()
-        update_eye_image(index-1)
+        update_eye_image(index - 1)
 
     nav_frame = tk.Frame(settings_frame, bg=PRIMARY_COLOR)
     nav_frame.pack(pady=5)
 
     tk.Button(
-        nav_frame, 
-        text="⬅ Prev", 
+        nav_frame,
+        text="⬅ Prev",
         font=(FONT_NAME, scale_factor(6)),
-        bg=BUTTON_COLOR, 
-        fg=TEXT_COLOR, 
-        command=prev_pic
+        bg=BUTTON_COLOR,
+        fg=TEXT_COLOR,
+        command=prev_pic,
     ).pack(side="left", padx=10)
 
     tk.Button(
-        nav_frame, 
-        text="Next ➡", 
+        nav_frame,
+        text="Next ➡",
         font=(FONT_NAME, scale_factor(6)),
-        bg=BUTTON_COLOR, 
-        fg=TEXT_COLOR, 
-        command=next_pic
+        bg=BUTTON_COLOR,
+        fg=TEXT_COLOR,
+        command=next_pic,
     ).pack(side="right", padx=10)
 
     # ===== Save button (Settings) =====
@@ -331,29 +369,28 @@ def create_app():
         saved_label.config(text="Saved ✓")
         saved_label.after(1000, lambda: saved_label.config(text=""))
 
-
     save_button_settings = tk.Button(
         settings_frame,
-        text="💾 Save", 
+        text="💾 Save",
         font=(FONT_NAME, scale_factor(6)),
-        bg="#364B73", 
-        fg="white", 
-        command=save_settings
+        bg="#364B73",
+        fg="white",
+        command=save_settings,
     )
     save_button_settings.pack(pady=5)
 
     saved_label = tk.Label(
         settings_frame,
-        text="", 
+        text="",
         bg=PRIMARY_COLOR,
-        fg= "black",
-        font=(FONT_NAME, scale_factor(6))
+        fg="black",
+        font=(FONT_NAME, scale_factor(6)),
     )
     saved_label.pack(pady=(0, 10))
 
     # ===== INFO FRAME =====
     info_frame = tk.Frame(root, bg=PRIMARY_COLOR)
-    
+
     def back_to_main_from_info():
         pygame.mixer.Sound("Resources/computer-mouse-click.mp3").play()
         if info_channel is not None:
@@ -361,43 +398,42 @@ def create_app():
         info_frame.pack_forget()
         main_frame.pack(fill="both", expand=True)
 
-
     back_button_info = tk.Button(
         info_frame,
-        text="← Back", 
+        text="← Back",
         font=(FONT_NAME, scale_factor(6)),
         bg=PRIMARY_COLOR,
-        fg=TEXT_COLOR, 
+        fg=TEXT_COLOR,
         bd=0,
-        activebackground=PRIMARY_COLOR, 
-        command=back_to_main_from_info
+        activebackground=PRIMARY_COLOR,
+        command=back_to_main_from_info,
     )
     back_button_info.pack(anchor="nw", padx=5, pady=5)
 
     tk.Label(
-        info_frame, 
-        text="Ya3yoni", 
+        info_frame,
+        text="Ya3yoni",
         font=(FONT_NAME, scale_factor(10)),
-        bg=PRIMARY_COLOR, 
-        fg=TEXT_COLOR
+        bg=PRIMARY_COLOR,
+        fg=TEXT_COLOR,
     ).pack(pady=10)
 
     tk.Label(
-        info_frame, 
-        text="Version 1.0", 
+        info_frame,
+        text="Version 1.0",
         font=(FONT_NAME, scale_factor(6)),
         bg=PRIMARY_COLOR,
-        fg=TEXT_COLOR
+        fg=TEXT_COLOR,
     ).pack(pady=5)
 
     tk.Label(
         info_frame,
-        text="- this app was made for your deadly brain that forgets to blink, playing staring contests with your computer.\n\nAnd no, those 20 seconds of closing your eyes still won’t finish the task you’ve been avoiding until the deadline… but at least your eyes won’t suffer for it.\n\nSo here I am solving a problem you didn’t even know you had.\n\nyou’re welcome\n\nCredits: Arwa Mohamed", 
+        text="- this app was made for your deadly brain that forgets to blink, playing staring contests with your computer.\n\nAnd no, those 20 seconds of closing your eyes still won’t finish the task you’ve been avoiding until the deadline… but at least your eyes won’t suffer for it.\n\nSo here I am solving a problem you didn’t even know you had.\n\nyou’re welcome\n\nCredits: Arwa Mohamed",
         justify="left",
-        wraplength=400, 
+        wraplength=400,
         font=(FONT_NAME, scale_factor(6)),
-        bg=PRIMARY_COLOR, 
-        fg=TEXT_COLOR
+        bg=PRIMARY_COLOR,
+        fg=TEXT_COLOR,
     ).pack(pady=(10, 5))
 
     info_sound = pygame.mixer.Sound("Resources/beat-effect.mp3")
@@ -410,7 +446,6 @@ def create_app():
         info_frame.pack(fill="both", expand=True)
         info_channel = info_sound.play(-1)
 
-
     # ===== Navigation Buttons on main =====
     def open_settings():
         pygame.mixer.Sound("Resources/computer-mouse-click.mp3").play()
@@ -418,28 +453,29 @@ def create_app():
         settings_frame.pack(fill="both", expand=True)
 
     tk.Button(
-        main_frame, 
-        text="⚙️ Settings", 
+        main_frame,
+        text="⚙️ Settings",
         font=(FONT_NAME, scale_factor(6)),
-        bg=PRIMARY_COLOR, 
-        fg=TEXT_COLOR, 
+        bg=PRIMARY_COLOR,
+        fg=TEXT_COLOR,
         bd=0,
-        activebackground=PRIMARY_COLOR, 
-        command=open_settings
+        activebackground=PRIMARY_COLOR,
+        command=open_settings,
     ).pack()
 
     tk.Button(
-        main_frame, 
-        text="? Info", 
+        main_frame,
+        text="? Info",
         font=(FONT_NAME, scale_factor(6)),
-        bg=PRIMARY_COLOR, 
-        fg=TEXT_COLOR, 
+        bg=PRIMARY_COLOR,
+        fg=TEXT_COLOR,
         bd=0,
-        activebackground=PRIMARY_COLOR, 
-        command=open_info
+        activebackground=PRIMARY_COLOR,
+        command=open_info,
     ).pack()
 
     return root
+
 
 # ===== Run App =====
 if __name__ == "__main__":
